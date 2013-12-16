@@ -63,6 +63,13 @@ define([
                     
                 }
             });
+            
+            $(this.options.photo.item).click(function() {
+                // Photo loaded yet
+                if ($(this).is('.loading') == false) {
+                    self.showImage($(this).index() + 1);
+                }
+            });            
         },
         
         resizeSize: function() {
@@ -100,9 +107,13 @@ define([
             a = b = undefined;
             
             this.$el.find(this.options.photo.item).on('load.gallery', function() {
+                if (console)
+                    console.log('photo queue', $(this).find('img').attr('data-src'));
                 self.loadQueueItem();
             });
             this.$el.find(this.options.preview.item).on('load.gallery', function() {
+                if (console)
+                    console.log('preview queue',  $(this).find('img').attr('data-src'));
                 self.loadQueueItem();
             });            
             self.loadQueueItem();
@@ -116,8 +127,12 @@ define([
                 var spinner = $(box).find('.spinner');
 
                 $(img).attr('src', $(img).attr('data-src')).on('load error', function() {
+                    console.log('----', $(this).width(), $(this).height());
+                    
                     // Remove spinner
                     spinner.remove();
+                    // Set image position and scale
+                    self.setImageSize(this);
                     // Remove loading class (fade in transition effect)
                     $(box).removeClass('loading').addClass('loaded');
                     // Load next image
@@ -133,24 +148,69 @@ define([
                 self.action = true;
                 
                 var next = self.$el.find(self.options.photo.item).eq(id);
-                if (next.is('.loading')) {
-                    // Find next photo in queue and move it to start queue
-                    var i = _.indexOf(self.queue, next[0]);
-                    var a = self.queue.slice(0, i)
-                    var b = self.queue.slice(i, i + 1)
-                    var c = self.queue.slice(i + 1)
-                    
-                    self.queue = _.union(b, a, c);
-                    i = a = b = c = undefined;
-                }
-                self.$el.find(self.options.photo.item+':visible').fadeOut(self.options.photoEffectTime, function() {
-                    next.fadeIn(self.options.photoEffectTime, function() {
-                        self.action = false;
+                var curr = self.$el.find(self.options.photo.item+':visible');
+                
+                if (curr.index() != id && next.size() == 1) {
+                    if (next.is('.loading')) {
+                        // Find next photo in queue and move it to start queue
+                        var i = _.indexOf(self.queue, next[0]);
+                        var a = self.queue.slice(0, i)
+                        var b = self.queue.slice(i, i + 1)
+                        var c = self.queue.slice(i + 1)
+                        
+                        self.queue = _.union(b, a, c);
+                        i = a = b = c = undefined;
+                    }
+                    curr.fadeOut(self.options.photoEffectTime, function() {
+                        next.fadeIn(self.options.photoEffectTime, function() {
+                            self.action = false;
+                        });
                     });
-                });
+                }
+                else {
+                    self.action = false;
+                }
             }
         },
         
+        setImageSize: function(img) {
+            // Set image class
+            var ci = 1.5;
+            var cw = $(img).parent().data('width') / $(img).parent().data('height');
+            // Inner
+            if (this.options.imagePosition == 'inner') {
+                var c = (ci >= cw) ? 'h' : 'w';
+            }
+            // Outer
+            else {
+                var c = (ci >= cw) ? 'w' : 'h';
+            }
+            $(img).removeClass('w h').addClass(c);
+            
+            if (this.options.imagePosition == 'inner') {
+                var hi = $(img).height();
+                var hw = $(img).parent().height();
+                $(img).css('marginTop',parseInt((hw - hi) / 2) + 'px');
+            }
+            // Set margin top for inner position
+            else {
+
+                $(img).css({'marginTop':0,'marginLeft':0});
+                
+                var wi = $(img).width();
+                var ww = $(img).parent().width();
+                var hi = $(img).height();
+                var hw = $(img).parent().height();
+                
+                if (wi > ww) {
+                    $(img).css('marginLeft', parseInt((ww - wi) / 2) + 'px');
+                }
+                if (hi != hw) {
+                    $(img).css('marginTop', parseInt((hw - hi) / 2) + 'px');
+                }
+                
+            }            
+        },        
 
         render: function() {
             return this;
