@@ -57,7 +57,11 @@ define([
             
             // Click event
             $(this.options.preview.item).click(function() {
-                self.showImage($(this).index());
+                // Photo loaded yet
+                if ($(this).is('.loading') == false) {
+                    self.showImage($(this).index());
+                    
+                }
             });
         },
         
@@ -110,12 +114,12 @@ define([
                 var box = self.queue.shift();
                 var img = $(box).find('img');
                 var spinner = $(box).find('.spinner');
-                
+
                 $(img).attr('src', $(img).attr('data-src')).on('load error', function() {
                     // Remove spinner
                     spinner.remove();
                     // Remove loading class (fade in transition effect)
-                    $(this).removeClass('loading');
+                    $(box).removeClass('loading').addClass('loaded');
                     // Load next image
                     $(box).trigger('load.gallery');
                 });
@@ -127,8 +131,20 @@ define([
             if (this.action == false) {
                 var self = this;
                 self.action = true;
+                
+                var next = self.$el.find(self.options.photo.item).eq(id);
+                if (next.is('.loading')) {
+                    // Find next photo in queue and move it to start queue
+                    var i = _.indexOf(self.queue, next[0]);
+                    var a = self.queue.slice(0, i)
+                    var b = self.queue.slice(i, i + 1)
+                    var c = self.queue.slice(i + 1)
+                    
+                    self.queue = _.union(b, a, c);
+                    i = a = b = c = undefined;
+                }
                 self.$el.find(self.options.photo.item+':visible').fadeOut(self.options.photoEffectTime, function() {
-                    self.$el.find(self.options.photo.item).eq(id).fadeIn(self.options.photoEffectTime, function() {
+                    next.fadeIn(self.options.photoEffectTime, function() {
                         self.action = false;
                     });
                 });

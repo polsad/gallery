@@ -25,12 +25,19 @@ body {margin: 0; padding: 0;}
 .gallery .photo-box .image {display: none; width: 100%; height: 100%;}
 .gallery .photo-box .image:first-child {display: block}
 
-.gallery .photo-box .image img, .gallery .preview-box .preview-viewport img {
-    opacity: 1;
-	-webkit-transition: opacity .3s ease-out; 
-	-moz-transition: opacity .3s ease-out; 
-	-o-transition: opacity .3s ease-out; 
-	transition: opacity .3s ease-out;    
+
+.gallery .photo-box .image img, .gallery .preview-box .preview-viewport .preview img {
+	-webkit-transition: opacity 1s ease-out; 
+	-moz-transition: opacity 1s ease-out; 
+	-o-transition: opacity 1s ease-out; 
+	transition: opacity 1s ease-out;    
 }
-.gallery .photo-box .image img.loading, .gallery .preview-box .preview-viewport img.loading {opacity: 0}
+
+.gallery .photo-box .image.loading img, .gallery .preview-box .preview-viewport .preview.loading img {
+    opacity: 0
+}
+
+.gallery .photo-box .image.loaded img, .gallery .preview-box .preview-viewport .preview.loaded img {
+    opacity: 1;
+}
 
