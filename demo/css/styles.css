@@ -1,0 +1,36 @@
+html, body {height: 100%}
+body {margin: 0; padding: 0;}
+.page {max-width: 1200px; margin: 0 auto; padding: 20px; overflow: hidden}
+
+.gallery { padding: 0; margin: 0;}
+.gallery .photo-box, .gallery .preview-box {float: left; min-height: 100%; height: 100%; overflow: hidden}
+
+.gallery .preview-box {position: relative}
+.gallery .preview-box:after {clear: both}
+.gallery .preview-box .preview-viewport {
+    position: absolute; 
+    top: 0px; 
+    width: 100%;     
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+}
+.gallery .preview-box .preview-viewport .preview {
+    float: left; 
+    cursor: pointer;
+}
+
+.gallery .photo-box .image, .gallery .preview-box .preview-viewport .preview {overflow: hidden; background: #eee}
+
+.gallery .photo-box .image {display: none; width: 100%; height: 100%;}
+.gallery .photo-box .image:first-child {display: block}
+
+.gallery .photo-box .image img, .gallery .preview-box .preview-viewport img {
+    opacity: 1;
+	-webkit-transition: opacity .3s ease-out; 
+	-moz-transition: opacity .3s ease-out; 
+	-o-transition: opacity .3s ease-out; 
+	transition: opacity .3s ease-out;    
+}
+.gallery .photo-box .image img.loading, .gallery .preview-box .preview-viewport img.loading {opacity: 0}
+
