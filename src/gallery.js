@@ -9,6 +9,7 @@ define([
         // Queue for images
         queue: [],    
         action: false,
+        timer: null,
         
 		options: {
             photo: {
@@ -39,6 +40,9 @@ define([
 
             $(window).on('resize.gallery', function() {
                 self.resizeSize();
+                self.$el.find(self.options.photo.item + ' img').each(function() {
+                    self.setImageSize(this, 1.5, self.options.imagePosition);
+                });
             }).trigger('resize.gallery');
             
             // Create queue
@@ -53,17 +57,14 @@ define([
                 opacity: 0.85,
                 rotation: 800,
                 color: '#000000'
-            }).center().play();            
+            }).center().play();        
             
-            // Click event
             $(this.options.preview.item).click(function() {
                 // Photo loaded yet
                 if ($(this).is('.loading') == false) {
                     self.showImage($(this).index());
-                    
                 }
             });
-            
             $(this.options.photo.item).click(function() {
                 // Photo loaded yet
                 if ($(this).is('.loading') == false) {
@@ -107,13 +108,9 @@ define([
             a = b = undefined;
             
             this.$el.find(this.options.photo.item).on('load.gallery', function() {
-                if (console)
-                    console.log('photo queue', $(this).find('img').attr('data-src'));
-                self.loadQueueItem();
+                 self.loadQueueItem();
             });
             this.$el.find(this.options.preview.item).on('load.gallery', function() {
-                if (console)
-                    console.log('preview queue',  $(this).find('img').attr('data-src'));
                 self.loadQueueItem();
             });            
             self.loadQueueItem();
@@ -127,18 +124,18 @@ define([
                 var spinner = $(box).find('.spinner');
 
                 $(img).attr('src', $(img).attr('data-src')).on('load error', function() {
-                    console.log('----', $(this).width(), $(this).height());
-                    
                     // Remove spinner
                     spinner.remove();
                     // Set image position and scale
-                    self.setImageSize(this);
+                    if ($(img).data('type') == 'photo') 
+                        self.setImageSize(this, 1.5, self.options.imagePosition)
+                    else 
+                        self.setImageSize(this, 1, 'out')
                     // Remove loading class (fade in transition effect)
                     $(box).removeClass('loading').addClass('loaded');
                     // Load next image
                     $(box).trigger('load.gallery');
                 });
-                
             }
         },
         
@@ -173,43 +170,47 @@ define([
             }
         },
         
-        setImageSize: function(img) {
-            // Set image class
-            var ci = 1.5;
+        /**
+         * img - image
+         * rate - image wrapper size rate
+         * type - in / out
+         */
+        setImageSize: function(img, rate, type) {
+            var ci = rate;
             var cw = $(img).parent().data('width') / $(img).parent().data('height');
-            // Inner
-            if (this.options.imagePosition == 'inner') {
+
+            if (type == 'in') {
                 var c = (ci >= cw) ? 'h' : 'w';
             }
-            // Outer
             else {
                 var c = (ci >= cw) ? 'w' : 'h';
             }
             $(img).removeClass('w h').addClass(c);
             
-            if (this.options.imagePosition == 'inner') {
-                var hi = $(img).height();
-                var hw = $(img).parent().height();
-                $(img).css('marginTop',parseInt((hw - hi) / 2) + 'px');
-            }
-            // Set margin top for inner position
-            else {
+            
+            var ww = $(img).parent().width();
+            var hw = $(img).parent().height();
+            
+            if ($(img).parent().is(':visible') == false)
+                 $(img).parent().css({'visible':'hidden', 'display': 'block'});
+            
+            var wi = $(img).width();
+            var hi = $(img).height();
 
-                $(img).css({'marginTop':0,'marginLeft':0});
-                
-                var wi = $(img).width();
-                var ww = $(img).parent().width();
-                var hi = $(img).height();
-                var hw = $(img).parent().height();
-                
-                if (wi > ww) {
-                    $(img).css('marginLeft', parseInt((ww - wi) / 2) + 'px');
-                }
-                if (hi != hw) {
-                    $(img).css('marginTop', parseInt((hw - hi) / 2) + 'px');
-                }
-                
-            }            
+            if ($(img).parent().is(':visible') == false)
+                $(img).parent().css({'visible':'', 'display': 'none'});
+            
+            var mt = ml = 0
+            if (wi != ww) {
+                ml = parseInt((ww - wi) / 2);
+            }
+            if (hi != hw) {
+                mt = parseInt((hw - hi) / 2);
+            }    
+            $(img).css({
+                'marginLeft': ml + 'px',
+                'marginTop': mt + 'px'
+            });
         },        
 
         render: function() {
