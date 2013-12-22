@@ -19,7 +19,11 @@ define([
             preview: {
                 box : '.preview-box',
                 viewport : '.preview-viewport',
-                item: '.preview'
+                item: '.preview',
+				viewCount: 0,
+				viewLimit: 0,
+				rowsCount: 0,
+				height: 0
             }
 		},        
     
@@ -61,7 +65,7 @@ define([
             
             $(this.options.preview.item).click(function() {
                 // Photo loaded yet
-                if ($(this).is('.loading') == false) {
+                if ($(this).is('.loading') == false) {			
                     self.showImage($(this).index());
                 }
             });
@@ -79,8 +83,13 @@ define([
             // Height for gallery
             $(this.el).height(parseInt(this.$el.find(this.options.photo.box).width() / 1.5));
             // Width and height for item
-            var w = Math.floor((this.$el.find(this.options.preview.viewport).width() - (this.options.previewCols - 1) * this.options.previewMargin) / this.options.previewCols);
+            var w = this.options.preview.height = Math.floor((this.$el.find(this.options.preview.viewport).width() - (this.options.previewCols - 1) * this.options.previewMargin) / this.options.previewCols);
             this.$el.find(this.options.preview.item).css({width: w, height: w});
+			
+			this.options.preview.viewCount = Math.ceil(this.$el.find(this.options.preview.box).height() / w);
+			this.options.preview.viewLimit = parseInt(this.options.preview.viewCount / 2);
+			this.options.preview.viewLimit = this.options.preview.viewLimit + this.options.preview.viewCount % 2;
+			this.options.preview.rowsCount = Math.ceil(this.$el.find(this.options.preview.item).size() / this.options.previewCols);
         },
         
         createQueue: function() {
@@ -112,7 +121,8 @@ define([
             });
             this.$el.find(this.options.preview.item).on('load.gallery', function() {
                 self.loadQueueItem();
-            });            
+            });
+			            
             self.loadQueueItem();
         },
         
@@ -146,7 +156,7 @@ define([
                 
                 var next = self.$el.find(self.options.photo.item).eq(id);
                 var curr = self.$el.find(self.options.photo.item+':visible');
-                
+				
                 if (curr.index() != id && next.size() == 1) {
                     if (next.is('.loading')) {
                         // Find next photo in queue and move it to start queue
@@ -159,7 +169,37 @@ define([
                         i = a = b = c = undefined;
                     }
                     curr.fadeOut(self.options.photoEffectTime, function() {
-                        next.fadeIn(self.options.photoEffectTime, function() {
+					    // Move previews
+						self.$el.find(self.options.preview.item).eq(curr.index()).removeClass('active');
+						self.$el.find(self.options.preview.item).eq(id).addClass('active');
+                        // Next row
+						var row = Math.floor(id / self.options.previewCols) + 1;
+						
+						console.log(id, self.options.previewCols, Math.floor(id / self.options.previewCols))
+						
+						
+						var delta = 0;
+						console.log('row ', row)
+						if (row <= self.options.preview.viewLimit) {
+							console.log(1, self.options.preview.viewLimit)
+							delta = 0;
+						}
+						else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
+							console.log(2, self.options.preview.rowsCount, self.options.preview.viewCount)
+							delta = self.options.preview.rowsCount - self.options.preview.viewCount;
+							
+						}
+						
+						else {
+							console.log(3, self.options.preview.viewLimit)
+							delta = (row - self.options.preview.viewLimit) 
+							
+						}
+						delta *= (self.options.preview.height + self.options.previewMargin);
+							
+						$(self.options.preview.viewport).animate({top: '-'+delta+'px'}, self.options.photoEffectTime);	
+						
+						next.fadeIn(self.options.photoEffectTime, function() {
                             self.action = false;
                         });
                     });
@@ -190,14 +230,15 @@ define([
             
             var ww = $(img).parent().width();
             var hw = $(img).parent().height();
+			var vw = $(img).parent().is(':visible');
             
-            if ($(img).parent().is(':visible') == false)
+            if (vw == false)
                  $(img).parent().css({'visible':'hidden', 'display': 'block'});
             
             var wi = $(img).width();
             var hi = $(img).height();
 
-            if ($(img).parent().is(':visible') == false)
+            if (vw == false)
                 $(img).parent().css({'visible':'', 'display': 'none'});
             
             var mt = ml = 0
