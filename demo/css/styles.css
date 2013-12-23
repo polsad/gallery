@@ -44,7 +44,7 @@ body {margin: 0; padding: 0;}
 }
 
 
-.gallery .photo-box {
+.gallery .photo-box, .gallery .preview-box {
     position: relative;
     -webkit-backface-visibility: hidden;
     -moz-backface-visibility: hidden;

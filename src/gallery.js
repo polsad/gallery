@@ -24,6 +24,11 @@ define([
 				viewLimit: 0,
 				rowsCount: 0,
 				height: 0
+            },
+            slideshow: {
+                time : 0,
+                status: 'stop',
+                timer: null
             }
 		},        
     
@@ -34,6 +39,10 @@ define([
         
         initSize: function() {
             var self = this;
+            
+            // Slideshow
+            this.options.slideshow.time = (this.options.slideshowTime == undefined) ? 0 : parseInt(this.options.slideshowTime);
+            this.options.slideshow.status = (this.options.slideshow.time > 0) ? 'start' : 'stop';
             
             // Start size
             this.$el.find(this.options.photo.box).width(this.options.photoWidth+'%');
@@ -65,13 +74,17 @@ define([
             
             $(this.options.preview.item).click(function() {
                 // Photo loaded yet
-                if ($(this).is('.loading') == false) {			
+                if ($(this).is('.loading') == false) {	
+                    window.clearInterval(self.options.slideshow.timer);                
+                    self.options.slideshow.status = 'stop';
                     self.showImage($(this).index());
                 }
             });
             $(this.options.photo.item).click(function() {
                 // Photo loaded yet
                 if ($(this).is('.loading') == false) {
+                    window.clearInterval(self.options.slideshow.timer);
+                    self.options.slideshow.status = 'stop';
                     self.showImage($(this).index() + 1);
                 }
             });            
@@ -86,9 +99,12 @@ define([
             var w = this.options.preview.height = Math.floor((this.$el.find(this.options.preview.viewport).width() - (this.options.previewCols - 1) * this.options.previewMargin) / this.options.previewCols);
             this.$el.find(this.options.preview.item).css({width: w, height: w});
 			
-			this.options.preview.viewCount = Math.ceil(this.$el.find(this.options.preview.box).height() / w);
+            // Visible rows
+			this.options.preview.viewCount = Math.ceil(this.$el.find(this.options.preview.box).height() / (w + this.options.previewMargin));
+            // Rows limit in top 
 			this.options.preview.viewLimit = parseInt(this.options.preview.viewCount / 2);
 			this.options.preview.viewLimit = this.options.preview.viewLimit + this.options.preview.viewCount % 2;
+            // Rows count
 			this.options.preview.rowsCount = Math.ceil(this.$el.find(this.options.preview.item).size() / this.options.previewCols);
         },
         
@@ -143,6 +159,15 @@ define([
                         self.setImageSize(this, 1, 'out')
                     // Remove loading class (fade in transition effect)
                     $(box).removeClass('loading').addClass('loaded');
+                    // Start slideshow
+                    if (self.options.slideshow.status == 'start' && $(box).index() == 0 && $(img).data('type') == 'photo') {
+                        self.startSlideshow();
+                    }
+                    // Slideshow status = wait
+                    if (self.options.slideshow.status == 'wait' && $(box).index() > 0 && $(img).data('type') == 'photo') {
+                        self.options.slideshow.status = 'start';
+                        self.showImage($(box).index());
+                    }                    
                     // Load next image
                     $(box).trigger('load.gallery');
                 });
@@ -172,34 +197,38 @@ define([
 					    // Move previews
 						self.$el.find(self.options.preview.item).eq(curr.index()).removeClass('active');
 						self.$el.find(self.options.preview.item).eq(id).addClass('active');
+                        
                         // Next row
 						var row = Math.floor(id / self.options.previewCols) + 1;
 						
-						console.log(id, self.options.previewCols, Math.floor(id / self.options.previewCols))
-						
-						
-						var delta = 0;
-						console.log('row ', row)
+                        // Top for preview viewport
+                        var delta = 0;
+                        
 						if (row <= self.options.preview.viewLimit) {
-							console.log(1, self.options.preview.viewLimit)
 							delta = 0;
 						}
 						else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
-							console.log(2, self.options.preview.rowsCount, self.options.preview.viewCount)
 							delta = self.options.preview.rowsCount - self.options.preview.viewCount;
-							
 						}
-						
 						else {
-							console.log(3, self.options.preview.viewLimit)
 							delta = (row - self.options.preview.viewLimit) 
-							
 						}
+                        
 						delta *= (self.options.preview.height + self.options.previewMargin);
-							
+
+                        if (row == self.options.preview.rowsCount) {
+                            var h1 = $(self.options.preview.viewport).height();
+                            var h2 = (self.options.preview.rowsCount - self.options.preview.viewCount) * (self.options.preview.height + self.options.previewMargin) + $(self.options.preview.box).height();
+                            if (h1 > h2)
+                                delta += h1 - h2 - self.options.previewMargin;
+                        }
+
 						$(self.options.preview.viewport).animate({top: '-'+delta+'px'}, self.options.photoEffectTime);	
 						
 						next.fadeIn(self.options.photoEffectTime, function() {
+                            if (self.options.slideshow.status == 'start') {
+                                self.startSlideshow();
+                            }
                             self.action = false;
                         });
                     });
@@ -254,6 +283,28 @@ define([
             });
         },        
 
+        startSlideshow: function() {
+            var self = this;
+            
+            self.options.slideshow.timer = setTimeout(function() {
+               self.nextSlideshow();
+            }, self.options.slideshow.time);
+        },
+        
+        nextSlideshow: function() {
+            var self = this;
+            
+            var curr = self.$el.find(self.options.photo.item+':visible');
+            var next = self.$el.find(self.options.photo.item).eq(curr.index() + 1);
+            
+            if (next.is('.loaded')) {
+                self.showImage(curr.index() + 1);
+            }
+            else {
+                self.options.slideshow.status = 'wait';
+            }            
+        },
+        
         render: function() {
             return this;
         }
