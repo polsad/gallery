@@ -11,18 +11,20 @@ module.exports = function(grunt) {
 				options: {
 					
 					paths: {
-						'backbone': '../vendor/backbone-min',
-						'underscore': '../vendor/underscore-min',
-						'jquery': '../vendor/jquery-1.9.1.min'
+                        'backbone': '../vendor/backbone-min',
+                        'underscore': '../vendor/underscore-min',
+                        'jquery': '../vendor/jquery-1.9.1.min',
+                        'spinners': '../vendor/spinners.min',
+                        'mousewheel': '../vendor/jquery.mousewheel'
 					},
 					
 					baseUrl: 'src',
 			    	
-			    	name: 'one-height-grid',
+			    	name: 'gallery',
 			    	
-			    	out: 'dist/one-height-grid.js',
+			    	out: 'dist/gallery.js',
 			    	
-			    	exclude: ['backbone', 'underscore', 'jquery']
+			    	exclude: ['backbone', 'underscore', 'jquery', 'spinners', 'mousewheel']
 				}
 		
 			}

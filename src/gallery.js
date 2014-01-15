@@ -3,6 +3,7 @@ define([
     'backbone',
     'spinners',
     'mixins/data-options',
+    'mousewheel'
 
 ], function(Backbone, Spinners, DataOptions) {
     var Gallery = Backbone.View.extend({
@@ -23,14 +24,25 @@ define([
 				viewCount: 0,
 				viewLimit: 0,
 				rowsCount: 0,
+                itemCount: 0,
 				height: 0
             },
             slideshow: {
                 time : 0,
                 status: 'stop',
                 timer: null
+            },
+            scroll: {
+                action: false,
+                delta: 0,
+                h1: 0,
+                h2: 0
             }
 		},        
+    
+		events: {
+			'mousewheel': 'onMousewheel'
+		},
     
         initialize: function() {
             this.parseOptions();
@@ -39,20 +51,37 @@ define([
         
         initSize: function() {
             var self = this;
-            
+           
             // Slideshow
             this.options.slideshow.time = (this.options.slideshowTime == undefined) ? 0 : parseInt(this.options.slideshowTime);
             this.options.slideshow.status = (this.options.slideshow.time > 0) ? 'start' : 'stop';
             
             // Start size
-            this.$el.find(this.options.photo.box).width(this.options.photoWidth+'%');
-            this.$el.find(this.options.preview.box).width(100 - this.options.photoWidth+'%');
-            this.$el.find(this.options.preview.viewport).css('paddingLeft', this.options.previewMargin);
-            this.$el.find(this.options.preview.item).css({marginRight: this.options.previewMargin, marginBottom: this.options.previewMargin})        
-            this.$el.find(this.options.preview.item + ':nth-child(' + this.options.previewCols + 'n)').css({marginRight: 0});  
-
+            // With previews
+            if (self.options.previewEnable == true) {
+                this.$el.find(this.options.photo.box).width(this.options.photoWidth+'%');
+                this.$el.find(this.options.preview.box).width(100 - this.options.photoWidth+'%');
+                if (this.options.previewPosition == 'right') {
+                    this.$el.find(this.options.preview.viewport).css('paddingLeft', this.options.previewMargin);
+                }
+                else {
+                    this.$el.find(this.options.preview.viewport).css('paddingRight', this.options.previewMargin);
+                }
+                this.$el.find(this.options.preview.item).css({marginRight: this.options.previewMargin, marginBottom: this.options.previewMargin})        
+                this.$el.find(this.options.preview.item + ':nth-child(' + this.options.previewCols + 'n)').css({marginRight: 0});  
+            }
+            // Without preview
+            else {
+                this.$el.find(this.options.photo.box).width('100%');
+            }
+            
             $(window).on('resize.gallery', function() {
-                self.resizeSize();
+                if (self.options.previewEnable == true) {
+                    self.resizeSize();
+                }
+                else {
+                    $(self.el).height(parseInt(self.$el.find(self.options.photo.box).width() / 1.5));
+                }
                 self.$el.find(self.options.photo.item + ' img').each(function() {
                     self.setImageSize(this, 1.5, self.options.imagePosition);
                 });
@@ -72,14 +101,16 @@ define([
                 color: '#000000'
             }).center().play();        
             
-            $(this.options.preview.item).click(function() {
-                // Photo loaded yet
-                if ($(this).is('.loading') == false) {	
-                    window.clearInterval(self.options.slideshow.timer);                
-                    self.options.slideshow.status = 'stop';
-                    self.showImage($(this).index());
-                }
-            });
+            if (self.options.previewEnable == true) {
+                $(this.options.preview.item).click(function() {
+                    // Photo loaded yet
+                    if ($(this).is('.loading') == false) {	
+                        window.clearInterval(self.options.slideshow.timer);                
+                        self.options.slideshow.status = 'stop';
+                        self.showImage($(this).index());
+                    }
+                });
+            }
             $(this.options.photo.item).click(function() {
                 // Photo loaded yet
                 if ($(this).is('.loading') == false) {
@@ -98,13 +129,18 @@ define([
             // Width and height for item
             var w = this.options.preview.height = Math.floor((this.$el.find(this.options.preview.viewport).width() - (this.options.previewCols - 1) * this.options.previewMargin) / this.options.previewCols);
             this.$el.find(this.options.preview.item).css({width: w, height: w});
-			
+			// For scrolling
+            this.options.scroll.delta = w + this.options.previewMargin;
+            this.options.scroll.h1 = this.$el.find(this.options.preview.box).height();
+            this.options.scroll.h2 = this.$el.find(this.options.preview.viewport).height();
+           
             // Visible rows
 			this.options.preview.viewCount = Math.ceil(this.$el.find(this.options.preview.box).height() / (w + this.options.previewMargin));
             // Rows limit in top 
 			this.options.preview.viewLimit = parseInt(this.options.preview.viewCount / 2);
 			this.options.preview.viewLimit = this.options.preview.viewLimit + this.options.preview.viewCount % 2;
             // Rows count
+            this.options.preview.itemCount = this.$el.find(this.options.preview.item).size();
 			this.options.preview.rowsCount = Math.ceil(this.$el.find(this.options.preview.item).size() / this.options.previewCols);
         },
         
@@ -117,9 +153,12 @@ define([
             this.$el.find(this.options.photo.item).each(function() {
                 a.push(this);
             });
-            this.$el.find(this.options.preview.item).each(function() {
-                b.push(this);
-            });            
+            if (self.options.previewEnable == true) {
+                this.$el.find(this.options.preview.item).each(function() {
+                    b.push(this);
+                });   
+            }
+            
             for (i in a) {
                 // Photo
                 this.queue.push(a[i]);
@@ -135,9 +174,12 @@ define([
             this.$el.find(this.options.photo.item).on('load.gallery', function() {
                  self.loadQueueItem();
             });
-            this.$el.find(this.options.preview.item).on('load.gallery', function() {
-                self.loadQueueItem();
-            });
+            
+            if (self.options.previewEnable == true) {
+                this.$el.find(this.options.preview.item).on('load.gallery', function() {
+                    self.loadQueueItem();
+                });
+            }
 			            
             self.loadQueueItem();
         },
@@ -194,37 +236,40 @@ define([
                         i = a = b = c = undefined;
                     }
                     curr.fadeOut(self.options.photoEffectTime, function() {
-					    // Move previews
-						self.$el.find(self.options.preview.item).eq(curr.index()).removeClass('active');
-						self.$el.find(self.options.preview.item).eq(id).addClass('active');
-                        
-                        // Next row
-						var row = Math.floor(id / self.options.previewCols) + 1;
-						
-                        // Top for preview viewport
-                        var delta = 0;
-                        
-						if (row <= self.options.preview.viewLimit) {
-							delta = 0;
-						}
-						else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
-							delta = self.options.preview.rowsCount - self.options.preview.viewCount;
-						}
-						else {
-							delta = (row - self.options.preview.viewLimit) 
-						}
-                        
-						delta *= (self.options.preview.height + self.options.previewMargin);
+                        // Move previews
+						if (self.options.previewEnable == true) {
+                            
+                            self.$el.find(self.options.preview.item).eq(curr.index()).removeClass('active');
+                            self.$el.find(self.options.preview.item).eq(id).addClass('active');
+                            
+                            // Next row
+                            var row = Math.floor(id / self.options.previewCols) + 1;
+                            
+                            // Top for preview viewport
+                            var delta = 0;
+                            
+                            if (row <= self.options.preview.viewLimit) {
+                                delta = 0;
+                            }
+                            else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
+                                delta = self.options.preview.rowsCount - self.options.preview.viewCount;
+                            }
+                            else {
+                                delta = (row - self.options.preview.viewLimit) 
+                            }
+                            
+                            delta *= (self.options.preview.height + self.options.previewMargin);
 
-                        if (row == self.options.preview.rowsCount) {
-                            var h1 = $(self.options.preview.viewport).height();
-                            var h2 = (self.options.preview.rowsCount - self.options.preview.viewCount) * (self.options.preview.height + self.options.previewMargin) + $(self.options.preview.box).height();
-                            if (h1 > h2)
-                                delta += h1 - h2 - self.options.previewMargin;
-                        }
+                            if (row == self.options.preview.rowsCount) {
+                                var h1 = $(self.options.preview.viewport).height();
+                                var h2 = (self.options.preview.rowsCount - self.options.preview.viewCount) * (self.options.preview.height + self.options.previewMargin) + $(self.options.preview.box).height();
+                                if (h1 > h2)
+                                    delta += h1 - h2 - self.options.previewMargin;
+                            }
 
-						$(self.options.preview.viewport).animate({top: '-'+delta+'px'}, self.options.photoEffectTime);	
-						
+                            $(self.options.preview.viewport).animate({top: '-'+delta+'px'}, self.options.photoEffectTime);	
+						}
+                        
 						next.fadeIn(self.options.photoEffectTime, function() {
                             if (self.options.slideshow.status == 'start') {
                                 self.startSlideshow();
@@ -304,6 +349,25 @@ define([
                 self.options.slideshow.status = 'wait';
             }            
         },
+        
+        onMousewheel: function(event, delta, deltaX, deltaY) {
+            var self = this;
+            if (self.options.scroll.action == false && self.action == false) {
+                self.options.scroll.action = true;
+                var top = Math.abs(parseInt(self.$el.find(this.options.preview.viewport).css('top')));
+                if (deltaY > 0) {
+                    top = top + self.options.scroll.delta;
+                    if (top > self.options.scroll.h2 - self.options.scroll.h1) {
+                        top = self.options.scroll.h2 - self.options.scroll.h1
+                    }
+                } else {
+                    top = top - self.options.scroll.delta;
+                    if (top < 0) 
+                        top = 0;
+                }      
+                self.$el.find(this.options.preview.viewport).animate({top: '-'+top+'px'}, 100, 'linear', function() {self.options.scroll.action = false});              
+            }
+		},
         
         render: function() {
             return this;
