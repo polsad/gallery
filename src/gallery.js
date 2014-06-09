@@ -11,10 +11,13 @@ define([
         queue: [],    
         action: false,
         timer: null,
+        timerResize: null,
+        timerTime: 0,
         
 		options: {
             photo: {
                 box : '.photo-box',
+                wrapper: '.photo-box-wrapper',
                 item: '.image'
             },
             preview: {
@@ -37,11 +40,15 @@ define([
                 delta: 0,
                 h1: 0,
                 h2: 0
+            },
+            arrows: {
+                prev: '.photo-box-prev',
+                next: '.photo-box-next'
             }
 		},        
     
 		events: {
-			'mousewheel': 'onMousewheel'
+			'mousewheel .preview-box': 'onMousewheel'
 		},
     
         initialize: function() {
@@ -56,10 +63,15 @@ define([
             this.options.slideshow.time = (this.options.slideshowTime == undefined) ? 0 : parseInt(this.options.slideshowTime);
             this.options.slideshow.status = (this.options.slideshow.time > 0) ? 'start' : 'stop';
             
+            // First image 
+            this.$el.find(this.options.photo.item+':first-child').css('display','block');
+            
             // Start size
             // With previews
             if (self.options.previewEnable == true) {
                 this.$el.find(this.options.photo.box).width(this.options.photoWidth+'%');
+                this.$el.find(this.options.photo.wrapper).width(this.$el.find(this.options.photo.box).width());
+                
                 this.$el.find(this.options.preview.box).width(100 - this.options.photoWidth+'%');
                 if (this.options.previewPosition == 'right') {
                     this.$el.find(this.options.preview.viewport).css('paddingLeft', this.options.previewMargin);
@@ -75,9 +87,26 @@ define([
                 this.$el.find(this.options.photo.box).width('100%');
             }
             
+            if (this.options.arrowsEnable == true) {
+                this.$el.find(this.options.arrows.prev).click(function() {
+                    self.prevSlide();
+                });
+                this.$el.find(this.options.arrows.next).click(function() {
+                    self.nextSlide();
+                });
+            }
+            
             $(window).on('resize.gallery', function() {
+                // Width for wrapper
+                self.$el.find(self.options.photo.wrapper).width(self.$el.find(self.options.photo.box).width());
+                
                 if (self.options.previewEnable == true) {
                     self.resizeSize();
+                    // Resize preview
+                    self.$el.find(self.options.preview.item + ' img').each(function() {
+                        self.setImageSize(this, 1, 'out');
+                    }); 
+                    self.fixViewportTop();
                 }
                 else {
                     $(self.el).height(parseInt(self.$el.find(self.options.photo.box).width() / 1.5));
@@ -114,9 +143,7 @@ define([
             $(this.options.photo.item).click(function() {
                 // Photo loaded yet
                 if ($(this).is('.loading') == false) {
-                    window.clearInterval(self.options.slideshow.timer);
-                    self.options.slideshow.status = 'stop';
-                    self.showImage($(this).index() + 1);
+                    self.nextSlide();
                 }
             });            
         },
@@ -132,7 +159,7 @@ define([
 			// For scrolling
             this.options.scroll.delta = w + this.options.previewMargin;
             this.options.scroll.h1 = this.$el.find(this.options.preview.box).height();
-            this.options.scroll.h2 = this.$el.find(this.options.preview.viewport).height();
+            this.options.scroll.h2 = this.$el.find(this.options.preview.viewport).height() - this.options.previewMargin;
            
             // Visible rows
 			this.options.preview.viewCount = Math.ceil(this.$el.find(this.options.preview.box).height() / (w + this.options.previewMargin));
@@ -242,32 +269,34 @@ define([
                             self.$el.find(self.options.preview.item).eq(curr.index()).removeClass('active');
                             self.$el.find(self.options.preview.item).eq(id).addClass('active');
                             
-                            // Next row
-                            var row = Math.floor(id / self.options.previewCols) + 1;
-                            
-                            // Top for preview viewport
-                            var delta = 0;
-                            
-                            if (row <= self.options.preview.viewLimit) {
-                                delta = 0;
-                            }
-                            else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
-                                delta = self.options.preview.rowsCount - self.options.preview.viewCount;
-                            }
-                            else {
-                                delta = (row - self.options.preview.viewLimit) 
-                            }
-                            
-                            delta *= (self.options.preview.height + self.options.previewMargin);
+                            if (self.options.preview.rowsCount >= self.options.preview.viewCount) {
+                                // Next row
+                                var row = Math.floor(id / self.options.previewCols) + 1;
+                                
+                                // Top for preview viewport
+                                var delta = 0;
+                                
+                                if (row <= self.options.preview.viewLimit) {
+                                    delta = 0;
+                                }
+                                else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
+                                    delta = self.options.preview.rowsCount - self.options.preview.viewCount;
+                                }
+                                else {
+                                    delta = (row - self.options.preview.viewLimit) 
+                                }
+                                
+                                delta *= (self.options.preview.height + self.options.previewMargin);
 
-                            if (row == self.options.preview.rowsCount) {
-                                var h1 = $(self.options.preview.viewport).height();
-                                var h2 = (self.options.preview.rowsCount - self.options.preview.viewCount) * (self.options.preview.height + self.options.previewMargin) + $(self.options.preview.box).height();
-                                if (h1 > h2)
-                                    delta += h1 - h2 - self.options.previewMargin;
-                            }
+                                if (row == self.options.preview.rowsCount) {
+                                    var h1 = $(self.options.preview.viewport).height();
+                                    var h2 = (self.options.preview.rowsCount - self.options.preview.viewCount) * (self.options.preview.height + self.options.previewMargin) + $(self.options.preview.box).height();
+                                    if (h1 > h2)
+                                        delta += h1 - h2 - self.options.previewMargin;
+                                }
 
-                            $(self.options.preview.viewport).animate({top: '-'+delta+'px'}, self.options.photoEffectTime);	
+                                $(self.options.preview.viewport).animate({top: '-'+delta+'px'}, self.options.photoEffectTime);	
+                            }
 						}
                         
 						next.fadeIn(self.options.photoEffectTime, function() {
@@ -275,13 +304,45 @@ define([
                                 self.startSlideshow();
                             }
                             self.action = false;
-                        });
+                        }).trigger('render:show');
                     });
                 }
                 else {
                     self.action = false;
                 }
             }
+        },
+        
+        fixViewportTop: function() {
+            var self = this;
+            if (self.options.preview.rowsCount >= self.options.preview.viewCount) {
+                // Next row
+                var id = self.$el.find(self.options.photo.item+':visible').index();
+                var row = Math.floor(id / self.options.previewCols) + 1;
+                // Top for preview viewport
+                var delta = 0;
+                
+                if (row <= self.options.preview.viewLimit) {
+                    delta = 0;
+                }
+                else if (row > self.options.preview.rowsCount - self.options.preview.viewLimit) {
+                    delta = self.options.preview.rowsCount - self.options.preview.viewCount;
+                }
+                else {
+                    delta = (row - self.options.preview.viewLimit) 
+                }
+                
+                delta *= (self.options.preview.height + self.options.previewMargin);
+
+                if (row == self.options.preview.rowsCount) {
+                    var h1 = $(self.options.preview.viewport).height();
+                    var h2 = (self.options.preview.rowsCount - self.options.preview.viewCount) * (self.options.preview.height + self.options.previewMargin) + $(self.options.preview.box).height();
+                    if (h1 > h2)
+                        delta += h1 - h2 - self.options.previewMargin;
+                }
+
+                $(self.options.preview.viewport).css({top: '-'+delta+'px'});	
+            }        
         },
         
         /**
@@ -300,7 +361,12 @@ define([
                 var c = (ci >= cw) ? 'w' : 'h';
             }
             $(img).removeClass('w h').addClass(c);
-            
+            if (type == 'out') {
+                if (c == 'w')
+                    $(img).width('100%');
+                else
+                    $(img).height('100%');
+            }
             
             var ww = $(img).parent().width();
             var hw = $(img).parent().height();
@@ -341,8 +407,11 @@ define([
             
             var curr = self.$el.find(self.options.photo.item+':visible');
             var next = self.$el.find(self.options.photo.item).eq(curr.index() + 1);
-            
-            if (next.is('.loaded')) {
+
+            if (next.size() == 0) {
+                self.showImage(0);
+            }
+            else if (next.is('.loaded')) {
                 self.showImage(curr.index() + 1);
             }
             else {
@@ -350,12 +419,41 @@ define([
             }            
         },
         
+        prevSlide: function() {
+            if (this.options.slideshow.status != 'stop') {
+                window.clearInterval(this.options.slideshow.timer);
+                this.options.slideshow.status = 'stop';
+            }
+            var id = this.$el.find(this.options.photo.item+':visible').index();
+            id = (id == 0) ? this.$el.find(this.options.photo.item).size() - 1 : id - 1;
+            this.showImage(id);
+        },
+        
+        nextSlide: function() {
+            if (this.options.slideshow.status != 'stop') {
+                window.clearInterval(this.options.slideshow.timer);
+                this.options.slideshow.status = 'stop';
+            }
+            var curr = this.$el.find(this.options.photo.item+':visible');
+            var next = this.$el.find(this.options.photo.item).eq(curr.index() + 1);
+            if (next.size() == 0) {
+                this.showImage(0);
+            }
+            else {
+                this.showImage(curr.index() + 1);
+            }    
+        },
+        
         onMousewheel: function(event, delta, deltaX, deltaY) {
             var self = this;
+            if (this.options.slideshow.status != 'stop') {
+                window.clearInterval(this.options.slideshow.timer);
+                this.options.slideshow.status = 'stop';
+            }            
             if (self.options.scroll.action == false && self.action == false) {
                 self.options.scroll.action = true;
                 var top = Math.abs(parseInt(self.$el.find(this.options.preview.viewport).css('top')));
-                if (deltaY > 0) {
+                if (deltaY < 0) {
                     top = top + self.options.scroll.delta;
                     if (top > self.options.scroll.h2 - self.options.scroll.h1) {
                         top = self.options.scroll.h2 - self.options.scroll.h1
@@ -367,6 +465,7 @@ define([
                 }      
                 self.$el.find(this.options.preview.viewport).animate({top: '-'+top+'px'}, 100, 'linear', function() {self.options.scroll.action = false});              
             }
+            return false;
 		},
         
         render: function() {
